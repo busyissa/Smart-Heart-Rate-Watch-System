@@ -7,6 +7,7 @@
 #include <util/delay.h>		
 #include <avr/pgmspace.h>
 #include <string.h>
+#include <stdio.h>
 
 // OLED I2C address
 #define SSD1306_ADDR 0x3C
@@ -143,6 +144,8 @@ volatile uint8_t tenSecFlag = 0;
 volatile unsigned int bpm = 0;
 volatile unsigned int bpmCalc = 0;
 
+//volatile uint8_t potsFlag = 0;
+
 
 //design : 
 
@@ -168,6 +171,16 @@ ISR(TIMER1_COMPA_vect) {
         bpmCalc = 0;
         tenSecFlag = 1;      // signal that 10 seconds have past
         seconds = 0;
+
+
+
+
+        putString("Heart Rate: ");
+        putChar((bpm / 100) + '0'); // hundreds digit
+        putChar(((bpm / 10) % 10) + '0'); //
+        putChar((bpm % 10) + '0'); // ones digit
+        putChar('\r');
+        putChar('\n');
     }
 }
 
@@ -183,6 +196,9 @@ int main(void){
 
     sei();
 
+    // Piezo buzzer on digital pin 8 (PB0), LED on digital pin 9 (PB1)
+    DDRB |= (1 << PB0) | (1 << PB1);
+
     // TWO buttons: 
     // Make PD2 an input with pull-up resistor
     DDRD &= ~(1 << PD2); 
@@ -195,6 +211,11 @@ int main(void){
     uint8_t click_count= 0;             // button press counter
     uint8_t prev_above = 0;             // track if previous reading was above threshold
 
+    int prev_BPM = -1;
+    int POTSWARNING = 0;                
+
+    char bpmString[8];
+
     // draw bitmap 
     ssd1306_clear();
     ssd1306_draw_bitmap();
@@ -203,6 +224,7 @@ int main(void){
     while(1){
         //read ADC value from channel 0 (PINB5)
         unsigned int value = readADC(0);    
+        uint8_t above = (value > VOLTTHRESHOLD);
 
         putString("ADC Value: ");
         putChar((value / 1000) + '0'); // thousands digit
@@ -219,71 +241,146 @@ int main(void){
         //convert adcValue to bpm (this is a placeholder, actual conversion will depend on the sensor's characteristics)
       //  unsigned int bpm = value; // replace with actual conversion formula
 
+    
+    
+        if (click_count == 0) {
+               // either button will give prompt
+            if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
+                _delay_ms(50);  //debounce
+                if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
+                    click_count = 1;
+                    ssd1306_clear();
+                    ssd1306_draw_string(2,0,"Are you 20 years");
+                    ssd1306_draw_string(2,1,"or older?");
+                    ssd1306_draw_string(10,3,"YES");
+                    ssd1306_draw_string(80,3,"NO");
 
-
-      // Check if button is pressed (either left or right button)
-        if (!(PIND & (1 << PD2)) | !(PIND & (1 << PD3))) { 
-            
-            _delay_ms(50); // delay to debounce the button
-            
-            // confirm it is still pressed
-            if (!(PIND & (1 << PD2)) | !(PIND & (1 << PD3))) { 
-                
-                // count ++ (will tell us which screen logic to control)
-                click_count++; 
-
-                // clear the screen from bitmap
-                ssd1306_clear(); 
-                
-                if (click_count == 1) {
-                    ssd1306_draw_string(2,2,"Are you 20 years or older?");
-                    ssd1306_draw_string(5,2,"YES");
-                    ssd1306_draw_string(5,7,"NO");
-                } 
-                else if(click_count==2){
-                    //was it TEEN or ADULT?
-                    if(!(PIND & (1 << PD2))){ 
-                        //BPM logic for teen
-                        //print BPM, maybe add pulsing heart animation
-
-                        //wait 10 seconds as it calculates
-                    }
-                    else{ 
-                        //BPM logic for adult
-                    }
+                    while(!(PIND & (1 << PD2)) || !(PIND & (1 << PD3)));
+                    _delay_ms(50);
                 }
-                else{
-                ssd1306_draw_bitmap();
-                click_count = 0;
-                }
+            }
+        }
+        else if (click_count == 1) {
+            // PD2 is YES (aka adult), which is left button
+            if (!(PIND & (1 << PD2)) && (PIND & (1 << PD3))) {
+                _delay_ms(50);
+                if (!(PIND & (1 << PD2))) {
+                    click_count = 2;
+                    POTSWARNING = 30;
 
-                // wait for button release
-                while(!(PIND & (1 << PD2))); 
-                _delay_ms(50); // debout release
+                    ssd1306_clear();
+                    ssd1306_draw_string(0, 0, "Adult");
+                    ssd1306_draw_string(0, 3, "BPM: ");
+                    snprintf(bpmString, sizeof(bpmString), "%d", bpm);
+                    ssd1306_draw_string(30, 3, bpmString);
+
+                    bpmCalc = 0;
+                    seconds = 0;
+                    tenSecFlag = 0;
+                    prev_BPM = -1;
+
+                    while(!(PIND & (1 << PD2)) || !(PIND & (1 << PD3)));
+                    _delay_ms(50);
+                }
+            }
+            // PD3 only = NO (Teen)
+            else if (!(PIND & (1 << PD3)) && (PIND & (1 << PD2))) {
+                _delay_ms(50);
+                if (!(PIND & (1 << PD3))) {
+                    click_count = 2;
+                    POTSWARNING = 40;
+
+                    ssd1306_clear();
+                    ssd1306_draw_string(0, 0, "Teen");
+                    ssd1306_draw_string(0, 3, "BPM: ");
+                    snprintf(bpmString, sizeof(bpmString), "%d", bpm);
+                    ssd1306_draw_string(30, 3, bpmString);
+
+                    bpmCalc = 0;
+                    seconds = 0;
+                    tenSecFlag = 0;
+                    prev_BPM = -1;
+
+                    while(!(PIND & (1 << PD2)) || !(PIND & (1 << PD3)));
+                    _delay_ms(50);
+                }
+            }
+        }
+        else if (click_count == 2) {
+            // Any button goes back to bitmap
+            if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
+                _delay_ms(50);
+                if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
+                    ssd1306_clear();
+                    ssd1306_draw_bitmap();
+                    click_count = 0;
+
+                    while(!(PIND & (1 << PD2)) || !(PIND & (1 << PD3)));
+                    _delay_ms(50);
+                }
             }
         }
 
-        //     if(tenSecFlag) { // if 10 seconds have passed, reset BPM calculation
-        //       unsigned int bpm = bpmCalc * 6; // calculate BPM based on beats counted in 10 seconds
-        //       //display to uart
-        //       putString("Heart Rate: ");
-        //       putChar((bpm / 100) + '0'); // hundreds digit
-        //       putChar(((bpm / 10) % 10) + '0'); //
-        //       putChar((bpm % 10) + '0'); // ones digit
-        //       putChar('\r');
-        //       putChar('\n');
+        if (tenSecFlag && click_count == 2) {
+            tenSecFlag = 0;
+
+            ssd1306_clear();
+            ssd1306_draw_string(0, 0, (POTSWARNING == 30) ? "Adult" : "Teen");
+            ssd1306_draw_string(0, 3, "BPM: ");
+            snprintf(bpmString, sizeof(bpmString), "%d", bpm);
+            ssd1306_draw_string(30, 3, bpmString);
+
+            if (prev_BPM < 0) {
+                prev_BPM = bpm;
+            }
+        }
 
 
-        //       bpmCalc = 0;
-        //       tenSecFlag = 0; // reset flag for next 10 second interval
-        //   }
         
-        if ((value > VOLTTHRESHOLD) && !prev_above) {  // beat detected
+        if ((value > VOLTTHRESHOLD) && !prev_above && click_count == 2)
             bpmCalc++;
-         //   _delay_ms(550); // delay to avoid counting the same beat multiple times (since 100bpm is about every 600ms)
 
-      }
-      prev_above = above;
+        if (prev_BPM >= 0 && click_count == 2 && tenSecFlag == 0) {
+            int potsCalc = bpm - prev_BPM;
+
+            if(potsCalc >= POTSWARNING || potsCalc <= -POTSWARNING){
+                ssd1306_clear();
+                ssd1306_draw_string(0, 3, "ALERT: SIT DOWN");
+
+                for (uint8_t j = 0; j < 20; j++) {
+                    PORTB |= (1 << PB1);
+                    for (uint16_t i = 0; i < 500; i++) {
+                        PORTB |= (1 << PB0);
+                        _delay_us(500);
+                        PORTB &= ~(1 << PB0);
+                        _delay_us(500);
+                    }
+                    PORTB &= ~(1 << PB1);
+                    for (uint16_t i = 0; i < 500; i++) {
+                        PORTB |= (1 << PB0);
+                        _delay_us(500);
+                        PORTB &= ~(1 << PB0);
+                        _delay_us(500);
+                    }
+                }
+                PORTB &= ~(1 << PB1);
+
+                bpmCalc = 0;
+                seconds = 0;
+                tenSecFlag = 0;
+                prev_BPM = -1;
+
+                ssd1306_clear();
+                ssd1306_draw_string(0, 0, (POTSWARNING == 30) ? "Adult" : "Teen");
+                ssd1306_draw_string(0, 3, "BPM: ");
+                snprintf(bpmString, sizeof(bpmString), "%d", bpm);
+                ssd1306_draw_string(30, 3, bpmString);
+            } else {
+                prev_BPM = bpm;
+            }
+        }
+
+      prev_above = above; 
 
     }
 
@@ -357,6 +454,8 @@ void initADC() {
 	ADCSRB = 0; // 0 for free running mode
 	ADCSRA |= (1 << ADEN); //Enable the ADC
 	ADCSRA |= (1 << ADSC); //Start the ADC conversion, keeps running automatically
+
+    DIDR0 |= (1 << ADC0D); // Disable digital input on ADC0 pin to reduce power consumption and noise
 }
 
 unsigned int readADC(unsigned char channel) {
