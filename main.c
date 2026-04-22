@@ -19,7 +19,7 @@
 // Voltage for a pulse
 #define VOLTTHRESHOLD 600  
 
-// Bitmap stored in flash (for the initial startup image, and heart icon)
+// bitmap stored in flash for POTS menu and heart icon
 static const uint8_t image_data_Saraarray[1024] PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
 	0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0xf0, 0xf0, 0x70, 0x70, 0xf0, 0xf0, 0xe0, 0x80, 0x80, 0xc0, 
@@ -87,7 +87,7 @@ static const uint8_t image_data_Saraarray[1024] PROGMEM = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 
-// ASCII font stored on flash
+// ASCII font stored on flash (for the oled)
 static const uint8_t font5x8[] PROGMEM = {
     0x00,0x00,0x00,0x00,0x00, 0x00,0x00,0x5F,0x00,0x00, 0x00,0x07,0x00,0x07,0x00, 0x14,0x7F,0x14,0x7F,0x14,
     0x24,0x2A,0x7F,0x2A,0x12, 0x23,0x13,0x08,0x64,0x62, 0x36,0x49,0x55,0x22,0x50, 0x00,0x05,0x03,0x00,0x00,
@@ -144,41 +144,26 @@ volatile uint8_t tenSecFlag = 0;
 volatile unsigned int bpm = 0;
 volatile unsigned int bpmCalc = 0;
 
-//volatile uint8_t potsFlag = 0;
-
-
-//design : 
-
-// heart rate sensor will have 3 Ports:
-// 1. power
-// 2. ground
-// 3. data output
-
-// Data will be analog, test with oscilloscope first,
-// make sure to isolate it from external noise
-
-
+// Design:
+// convert sensor input using ADC
 // read for 10 seconds, and BPM = (number of beats in 10 seconds) * 6
-
-// Convert analog data to digital using ADC
+// if BPM above threshold, trigger alerts
 
 
 //interrupt triggers on 1 second intervals
 ISR(TIMER1_COMPA_vect) {
-    seconds++;
-    if (seconds >= 10) {
-        bpm = bpmCalc * 6; 
+    seconds++;                          //increment second when 1 sec detected  
+    if (seconds >= 10) {                // if 10 seconds passed
+        bpm = bpmCalc * 6;              // calculate BPM (beats in 10 seconds * 6)
         bpmCalc = 0;
-        tenSecFlag = 1;      // signal that 10 seconds have past
+        tenSecFlag = 1;                 // signal that 10 seconds have passed
         seconds = 0;
 
-
-
-
+        //output to UART for testing
         putString("Heart Rate: ");
-        putChar((bpm / 100) + '0'); // hundreds digit
-        putChar(((bpm / 10) % 10) + '0'); //
-        putChar((bpm % 10) + '0'); // ones digit
+        putChar((bpm / 100) + '0'); 
+        putChar(((bpm / 10) % 10) + '0'); 
+        putChar((bpm % 10) + '0'); 
         putChar('\r');
         putChar('\n');
     }
@@ -194,13 +179,14 @@ int main(void){
     i2c_init();
     ssd1306_init();
 
-    sei();
+    // enable global interrupts
+    sei();            
 
-    // Piezo buzzer on digital pin 8 (PB0), LED on digital pin 9 (PB1)
+    // buzzer PB0, LED PB1
     DDRB |= (1 << PB0) | (1 << PB1);
 
     // TWO buttons: 
-    // Make PD2 an input with pull-up resistor
+    // Make PD2 an input with pull up resistor
     DDRD &= ~(1 << PD2); 
     PORTD |= (1 << PD2); 
 
@@ -211,10 +197,10 @@ int main(void){
     uint8_t click_count= 0;             // button press counter
     uint8_t prev_above = 0;             // track if previous reading was above threshold
 
-    int prev_BPM = -1;
-    int POTSWARNING = 0;                
+    int prev_BPM = -1;                  // prev bpm tracker
+    int POTSWARNING = 0;                // threshold for bpm change to trigger warning (differs for adult vs teen)
 
-    char bpmString[8];
+    char bpmString[8];                  // used to convert BPM int to string for OLED display
 
     // draw bitmap 
     ssd1306_clear();
@@ -224,27 +210,22 @@ int main(void){
     while(1){
         //read ADC value from channel 0 (PINB5)
         unsigned int value = readADC(0);    
-        uint8_t above = (value > VOLTTHRESHOLD);
+        uint8_t above = (value > VOLTTHRESHOLD);        // check if above volt threshold
 
+        //print to UART for testing
         putString("ADC Value: ");
-        putChar((value / 1000) + '0'); // thousands digit
-        putChar(((value / 100) % 10) + '0'); // hundreds digit
-        putChar(((value / 10) % 10) + '0'); // tens digit
-        putChar((value % 10) + '0'); // ones digit
-
+        putChar((value / 1000) + '0'); 
+        putChar(((value / 100) % 10) + '0'); 
+        putChar(((value / 10) % 10) + '0'); 
+        putChar((value % 10) + '0'); 
         putChar('\r');
         putChar('\n');
         _delay_ms(20);
         
-        //add if rising edge detected, timer 1 counts and ccalcs BPM
 
-        //convert adcValue to bpm (this is a placeholder, actual conversion will depend on the sensor's characteristics)
-      //  unsigned int bpm = value; // replace with actual conversion formula
-
-    
-    
+        //after menu screen, prompt adult/teen question
         if (click_count == 0) {
-               // either button will give prompt
+            // either button will give prompt
             if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
                 _delay_ms(50);  //debounce
                 if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
@@ -261,19 +242,21 @@ int main(void){
             }
         }
         else if (click_count == 1) {
-            // PD2 is YES (aka adult), which is left button
+            // If adult prompt pressed (PD2)
             if (!(PIND & (1 << PD2)) && (PIND & (1 << PD3))) {
                 _delay_ms(50);
-                if (!(PIND & (1 << PD2))) {
-                    click_count = 2;
-                    POTSWARNING = 30;
+                if (!(PIND & (1 << PD2))) { 
+                    click_count = 2;                                        // update click count
+                    POTSWARNING = 30;                                       // set POTS warning threshold for adult
 
+                    //Print BPM to OLED
                     ssd1306_clear();
                     ssd1306_draw_string(0, 0, "Adult");
                     ssd1306_draw_string(0, 3, "BPM: ");
                     snprintf(bpmString, sizeof(bpmString), "%d", bpm);
                     ssd1306_draw_string(30, 3, bpmString);
 
+                    // reset calculation variables
                     bpmCalc = 0;
                     seconds = 0;
                     tenSecFlag = 0;
@@ -283,19 +266,21 @@ int main(void){
                     _delay_ms(50);
                 }
             }
-            // PD3 only = NO (Teen)
+            // if teen prompt pressed (PD3)
             else if (!(PIND & (1 << PD3)) && (PIND & (1 << PD2))) {
                 _delay_ms(50);
                 if (!(PIND & (1 << PD3))) {
-                    click_count = 2;
-                    POTSWARNING = 40;
+                    click_count = 2;                                         // update click count
+                    POTSWARNING = 40;                                        // set POTS watching threshold for TEEN 
 
+                    //Print BPM to OLED
                     ssd1306_clear();
                     ssd1306_draw_string(0, 0, "Teen");
                     ssd1306_draw_string(0, 3, "BPM: ");
                     snprintf(bpmString, sizeof(bpmString), "%d", bpm);
                     ssd1306_draw_string(30, 3, bpmString);
 
+                    //reset calculation variables
                     bpmCalc = 0;
                     seconds = 0;
                     tenSecFlag = 0;
@@ -307,13 +292,13 @@ int main(void){
             }
         }
         else if (click_count == 2) {
-            // Any button goes back to bitmap
+            // Any button goes back to start screen bitmap
             if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
                 _delay_ms(50);
                 if (!(PIND & (1 << PD2)) || !(PIND & (1 << PD3))) {
-                    ssd1306_clear();
+                    ssd1306_clear();                                        // clear screen
                     ssd1306_draw_bitmap();
-                    click_count = 0;
+                    click_count = 0;                                        // reset click count
 
                     while(!(PIND & (1 << PD2)) || !(PIND & (1 << PD3)));
                     _delay_ms(50);
@@ -323,7 +308,7 @@ int main(void){
 
         if (tenSecFlag && click_count == 2) {
             tenSecFlag = 0;
-
+            //Print BPM to OLED when 10 seconds have passed
             ssd1306_clear();
             ssd1306_draw_string(0, 0, (POTSWARNING == 30) ? "Adult" : "Teen");
             ssd1306_draw_string(0, 3, "BPM: ");
@@ -335,20 +320,22 @@ int main(void){
             }
         }
 
-
-        
+        // if valid pulse, increment BPM
         if ((value > VOLTTHRESHOLD) && !prev_above && click_count == 2)
             bpmCalc++;
-
+ 
         if (prev_BPM >= 0 && click_count == 2 && tenSecFlag == 0) {
-            int potsCalc = bpm - prev_BPM;
-
+            int potsCalc = bpm - prev_BPM;          // checks for POTS threshold
+            
+            // if BPM change exceeds threshold, trigger alert
             if(potsCalc >= POTSWARNING || potsCalc <= -POTSWARNING){
-                ssd1306_clear();
-                ssd1306_draw_string(0, 3, "ALERT: SIT DOWN");
+                ssd1306_clear();                                        // clear screen
+                ssd1306_draw_string(0, 3, "ALERT: SIT DOWN");           // display alert message
 
+                // iterates buzzer and LED on/off for 20 cycles (which is 10 seconds)
                 for (uint8_t j = 0; j < 20; j++) {
                     PORTB |= (1 << PB1);
+                    //LED on for 0.5 seconds for alert
                     for (uint16_t i = 0; i < 500; i++) {
                         PORTB |= (1 << PB0);
                         _delay_us(500);
@@ -356,6 +343,7 @@ int main(void){
                         _delay_us(500);
                     }
                     PORTB &= ~(1 << PB1);
+                    //buzzer frequecny to make alert noise
                     for (uint16_t i = 0; i < 500; i++) {
                         PORTB |= (1 << PB0);
                         _delay_us(500);
@@ -365,18 +353,19 @@ int main(void){
                 }
                 PORTB &= ~(1 << PB1);
 
+                //reset calculation variables
                 bpmCalc = 0;
                 seconds = 0;
                 tenSecFlag = 0;
                 prev_BPM = -1;
-
+                // clear alert and print BPM to OLED after alert
                 ssd1306_clear();
                 ssd1306_draw_string(0, 0, (POTSWARNING == 30) ? "Adult" : "Teen");
                 ssd1306_draw_string(0, 3, "BPM: ");
                 snprintf(bpmString, sizeof(bpmString), "%d", bpm);
                 ssd1306_draw_string(30, 3, bpmString);
             } else {
-                prev_BPM = bpm;
+                prev_BPM = bpm; // update prev BPM if no alert
             }
         }
 
@@ -386,8 +375,6 @@ int main(void){
 
 }
 
-//(mostly) example function snippets from prev assignemtns / harris example code
-
 /* ************************************************* */
 /*                  TIMER1 FUNCTIONS                 */
 /* ************************************************* */
@@ -395,14 +382,14 @@ int main(void){
   void initTimer1() {
       TCCR1A = 0;
       TCCR1B = (1 << WGM12) | (1 << CS12) | (1 << CS10); // CTC mode, prescaler 1024
-      OCR1A = 15624;          // 16,000,000 / 1024 = 15,625 ticks/sec → compare at 15,624 (0-indexed)
+      OCR1A = 15624;          // 16,000,000 / 1024 = 15,625 ticks/sec, compare at 15,624 
       TIMSK1 |= (1 << OCIE1A); // enable compare match A interrupt
       TCNT1 = 0;
   }
 
 
 //Notes: 
-//16mhz / 1024 prescaler = 15,625 ticks per sec .... so 1 tick = 64us
+// 16mhz / 1024 prescaler = 15,625 ticks per sec .... so 1 tick = 64us
 // interval in ms = TCNT1 / 15.625 (since 15.625 ticks = 1 ms)
 
 /* ************************************************* */
@@ -411,8 +398,7 @@ int main(void){
 
 void initUART() {
 	unsigned int baudrate;
-	// Set baud rate: UBRR =
-	// [F_CPU/(16*BAUD)] -1
+	// Set baud rate: UBRR = [F_CPU/(16*BAUD)] -1
 	baudrate = ((F_CPU/16)/BAUD) - 1;
 	UBRR0H = (unsigned char)(baudrate >> 8);
 	UBRR0L = (unsigned char) baudrate;
@@ -446,7 +432,7 @@ void putString(unsigned char c[]) {
 
 void initADC() {
 	ADMUX = 0; // use ADC0
-	ADMUX |= (1 << REFS0); // UseAVcc as the reference
+	ADMUX |= (1 << REFS0); // Use Vcc as the reference
 	//ADMUX |= (1 << ADLAR); //Left-align for 8-bit resolution
 	ADCSRA |= (1 << ADPS2) | (1 << ADPS1) | (1 << ADPS0); // 128 prescale for 16 MHz
 	
