@@ -1,6 +1,6 @@
 # Heart Rate Smart Watch System
 
-![POTS BPM Monitor](Welcome%20to%20POTS%20BPM%20Monitor!%20(1).png)
+![POTS BPM Monitor](Photos/Welcome%20to%20POTS%20BPM%20Monitor!%20(1).png)
 
 A wearable heart rate monitoring system built on an ATmega328P that detects pulse signals, calculates BPM, displays results on an OLED screen, and alerts the user to potential Postural Orthostatic Tachycardia Syndrome (POTS) episodes.
 
@@ -21,7 +21,7 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
 
 ### System Diagram
 
-![System Diagram](Screenshot%202026-04-25%20142822.png)
+![System Diagram](Photos/Screenshot%202026-04-25%20142822.png)
 
 ### Components
 
@@ -50,7 +50,7 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
 
 ### Circuit
 
-![Full breadboard circuit](Screenshot%202026-04-25%20142557.png)
+![Full breadboard circuit](Photos/Screenshot%202026-04-25%20142557.png)
 
 ## How It Works
 
@@ -62,9 +62,9 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
    - Press the **right button (D3)** for NO (Teen)
 3. **Monitoring:** The system begins measuring heart rate and updates the OLED every 10 seconds with the current BPM
 
-![Pulse sensor on finger](Screenshot%202026-04-25%20142613.png)
+![Pulse sensor on finger](Photos/Screenshot%202026-04-25%20142613.png)
 
-![OLED displaying Teen mode with BPM reading](Screenshot%202026-04-25%20142628.png)
+![OLED displaying Teen mode with BPM reading](Photos/Screenshot%202026-04-25%20142628.png)
 
 4. **POTS alert:** If the BPM changes by more than the threshold between consecutive readings, the system:
    - Displays "ALERT: SIT DOWN" on the OLED
@@ -72,7 +72,7 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
    - Flashes the LED on/off in 0.5-second intervals
    - Alert lasts 10 seconds, then returns to the BPM display
 
-![POTS alert with LED and buzzer active](Screenshot%202026-04-25%20142639.png)
+![POTS alert with LED and buzzer active](Photos/Screenshot%202026-04-25%20142639.png)
 
 5. **Reset:** Press either button on the BPM screen to return to the startup bitmap
 
@@ -80,7 +80,7 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
 
 ADC values and BPM readings are printed to the serial monitor for debugging.
 
-![UART serial output showing ADC values](Screenshot%202026-04-25%20142652.png)
+![UART serial output showing ADC values](Photos/Screenshot%202026-04-25%20142652.png)
 
 ### Heart Rate Detection
 
@@ -89,11 +89,10 @@ The pulse sensor outputs an analog voltage that rises above a threshold (`VOLTTH
 ## Project Structure
 
 ```
-main.c                  Main application source
-keypadexamplecode.c     Keypad example/reference code
-heartsensor.c           Heart sensor example/reference code
-oled.c                  OLED example/reference code
-OLEDexamplecode.c       OLED example/reference code
+main.c          Merged application source (OLED + heart sensor + menu + alerts)
+heartsensor.c   Original heart sensor module (merged into main.c)
+oled.c          Original OLED display module (merged into main.c)
+Photos/         Project photos and system diagram
 ```
 
 ## Building
