@@ -77,6 +77,8 @@ The final build is housed in a compact cardboard enclosure with a perfboard repl
 
 ![Watch worn on wrist during heart rate monitoring](Photos/Screenshot%202026-05-09%20141726.png)
 
+![OLED displaying live BPM reading while worn](Photos/Screenshot%202026-05-09%20144128.png)
+
 ![Pulse sensor with green LED detecting heartbeat](Photos/Screenshot%202026-05-09%20141747.png)
 
 4. **POTS alert:** If the BPM changes by more than the threshold between consecutive readings, the system:
