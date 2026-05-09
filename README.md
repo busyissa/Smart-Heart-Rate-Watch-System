@@ -52,19 +52,32 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
 
 ![Full breadboard circuit](Photos/Screenshot%202026-04-25%20142557.png)
 
+### Enclosure
+
+The final build is housed in a compact cardboard enclosure with a perfboard replacing the breadboard.
+
+![Enclosure exterior with POTS BPM Monitor label](Photos/Screenshot%202026-05-09%20141803.png)
+
+![Perfboard with LED, buzzer, and button components](Photos/Screenshot%202026-05-09%20141810.png)
+
+![Internal wiring inside the enclosure](Photos/Screenshot%202026-05-09%20141824.png)
+
 ## How It Works
 
 ### User Flow
 
 1. **Startup:** A custom bitmap splash screen is displayed on the OLED
+
+![OLED displaying the POTS BPM Monitor splash screen](Photos/Screenshot%202026-05-09%20141702.png)
+
 2. **Age selection:** Press either button to see "Are you 20 years or older?"
    - Press the **left button (D2)** for YES (Adult)
    - Press the **right button (D3)** for NO (Teen)
 3. **Monitoring:** The system begins measuring heart rate and updates the OLED every 10 seconds with the current BPM
 
-![Pulse sensor on finger](Photos/Screenshot%202026-04-25%20142613.png)
+![Watch worn on wrist during heart rate monitoring](Photos/Screenshot%202026-05-09%20141726.png)
 
-![OLED displaying Teen mode with BPM reading](Photos/Screenshot%202026-04-25%20142628.png)
+![Pulse sensor with green LED detecting heartbeat](Photos/Screenshot%202026-05-09%20141747.png)
 
 4. **POTS alert:** If the BPM changes by more than the threshold between consecutive readings, the system:
    - Displays "ALERT: SIT DOWN" on the OLED
@@ -72,7 +85,7 @@ A wearable heart rate monitoring system built on an ATmega328P that detects puls
    - Flashes the LED on/off in 0.5-second intervals
    - Alert lasts 10 seconds, then returns to the BPM display
 
-![POTS alert with LED and buzzer active](Photos/Screenshot%202026-04-25%20142639.png)
+![Alert LED flashing during POTS detection](Photos/Screenshot%202026-05-09%20141837.png)
 
 5. **Reset:** Press either button on the BPM screen to return to the startup bitmap
 
